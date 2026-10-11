@@ -10,14 +10,18 @@ import random
 
 st.set_page_config(page_title="Enterprise AI Screening Agent", page_icon="🛡️", layout="wide")
 
-# Initialize Gemini Client using Streamlit secrets or environment variables
+# Initialize Gemini Client with caching for optimal lifecycle management
+@st.cache_resource
+def get_gemini_client(api_key: str):
+    return genai.Client(api_key=api_key)
+
 api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not api_key:
     st.error("🔑 Missing Gemini API Key. Please configure it in your Streamlit Secrets.")
     st.stop()
 
-client = genai.Client(api_key=api_key)
+client = get_gemini_client(api_key)
 
 # Define strict Pydantic Schema for structured enterprise output
 class EvaluationReport(BaseModel):
@@ -66,7 +70,7 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                         f"\"\"\"\n{user_content}\n\"\"\""
                     )
 
-                    # Updated to the current standard production model gemini-3.8-flash
+                    # Using standard production model with robust configuration
                     response = client.models.generate_content(
                         model='gemini-3.8-flash',
                         contents=prompt,
