@@ -5,6 +5,8 @@ from google import genai
 from google.genai import types
 import os
 import time
+from pypdf import PdfReader
+from docx import Document
 
 st.set_page_config(page_title="Enterprise AI Screening Agent", page_icon="🛡️", layout="wide")
 
@@ -35,16 +37,40 @@ with st.sidebar:
     target_type = st.selectbox("Select Target Type", ["resume", "code"])
     st.info("This agent uses Pydantic schema validation to guarantee clean, machine-readable JSON reports from Gemini.")
 
-# Text input area
-user_content = st.text_area(
-    f"Paste the raw text of the {target_type} to evaluate below:",
-    height=250,
-    placeholder=f"Paste raw {target_type} data here..."
+# File Uploader for PDF, DOCX, and TXT files
+uploaded_file = st.file_uploader(
+    f"Upload the {target_type} file (PDF, DOCX, or TXT):", 
+    type=["pdf", "docx", "txt"]
 )
+
+user_content = ""
+
+if uploaded_file is not None:
+    file_extension = uploaded_file.name.split(".")[-1].lower()
+    try:
+        if file_extension == "txt":
+            user_content = uploaded_file.read().decode("utf-8")
+        elif file_extension == "pdf":
+            reader = PdfReader(uploaded_file)
+            user_content = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+        elif file_extension == "docx":
+            doc = Document(uploaded_file)
+            user_content = "\n".join([paragraph.text for paragraph in doc.paragraphs if paragraph.text])
+        st.success(f"Successfully loaded: **{uploaded_file.name}**")
+    except Exception as e:
+        st.error(f"Error parsing file: {e}")
+
+# Fallback text area if no file is uploaded
+if not user_content:
+    user_content = st.text_area(
+        f"Or paste the raw text of the {target_type} to evaluate below:",
+        height=250,
+        placeholder=f"Paste raw {target_type} data here..."
+    )
 
 if st.button("Run AI Evaluation 🚀", type="primary"):
     if not user_content.strip():
-        st.warning("Please provide input text to analyze.")
+        st.warning("Please upload a file or provide input text to analyze.")
     else:
         with st.spinner("Analyzing submission against enterprise benchmarks..."):
             max_retries = 3
