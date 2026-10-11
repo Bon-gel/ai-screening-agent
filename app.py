@@ -1,8 +1,10 @@
+# Importing Nececssary Libraries
 import streamlit as st
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 import os
+import time
 
 st.set_page_config(page_title="Enterprise AI Screening Agent", page_icon="🛡️", layout="wide")
 
@@ -45,24 +47,38 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
         st.warning("Please provide input text to analyze.")
     else:
         with st.spinner("Analyzing submission against enterprise benchmarks..."):
-            try:
-                prompt = (
-                    f"You are a rigorous Principal Tech Lead and Enterprise Recruiter. "
-                    f"Analyze the following {target_type} with extreme scrutiny:\n\n"
-                    f"\"\"\"\n{user_content}\n\"\"\""
-                )
+            max_retries = 3
+            success = False
+            response = None
+            
+            for attempt in range(max_retries):
+                try:
+                    prompt = (
+                        f"You are a rigorous Principal Tech Lead and Enterprise Recruiter. "
+                        f"Analyze the following {target_type} with extreme scrutiny:\n\n"
+                        f"\"\"\"\n{user_content}\n\"\"\""
+                    )
 
-                # Call Gemini with native structured output enforcement
-                response = client.models.generate_content(
-                    model='gemini-3.5-flash',
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=EvaluationReport,
-                        temperature=0.2
-                    ),
-                )
+                    # Switched to gemini-3.5-flash-lite for maximum stability and lower traffic saturation
+                    response = client.models.generate_content(
+                        model='gemini-3.5-flash-lite',
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json",
+                            response_schema=EvaluationReport,
+                            temperature=0.2
+                        ),
+                    )
+                    success = True
+                    break # Exit retry loop if successful
+                except Exception as e:
+                    if "503" in str(e) and attempt < max_retries - 1:
+                        time.sleep(2) # Wait 2 seconds before retrying
+                        continue
+                    else:
+                        raise e
 
+            if success and response:
                 # Parsed response matching the Pydantic model
                 report = response.parsed
 
@@ -91,6 +107,3 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                 st.subheader("🛠️ Actionable Recommendations")
                 for rec in report.actionable_recommendations:
                     st.markdown(f"1. {rec}")
-
-            except Exception as e:
-                st.error(f"Inference Processing Exception: {e}")
