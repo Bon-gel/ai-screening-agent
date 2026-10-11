@@ -64,9 +64,9 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                         f"\"\"\"\n{user_content}\n\"\"\""
                     )
 
-                    # Using valid production model with automated retry handling
+                    # Using standard gemini-3.5-flash production model with retry resilience
                     response = client.models.generate_content(
-                        model='gemini-2.5-flash',
+                        model='gemini-3.5-flash',
                         contents=prompt,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
