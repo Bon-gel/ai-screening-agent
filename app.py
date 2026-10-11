@@ -1,4 +1,4 @@
-# Importing Nececssary Libraries
+# Importing Necessary Libraries
 import streamlit as st
 from pydantic import BaseModel, Field
 from google import genai
@@ -59,9 +59,9 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                         f"\"\"\"\n{user_content}\n\"\"\""
                     )
 
-                    # Switched to gemini-3.5-flash-lite for maximum stability and lower traffic saturation
+                    # Using the stable, production-grade gemini-2.5-flash model with built-in retry resilience
                     response = client.models.generate_content(
-                        model='gemini-3.5-flash-lite',
+                        model='gemini-2.5-flash',
                         contents=prompt,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
