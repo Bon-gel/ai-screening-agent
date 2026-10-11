@@ -41,7 +41,6 @@ user_content = st.text_area(
     height=250,
     placeholder=f"Paste raw {target_type} data here..."
 )
-
 if st.button("Run AI Evaluation 🚀", type="primary"):
     if not user_content.strip():
         st.warning("Please provide input text to analyze.")
@@ -59,9 +58,9 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                         f"\"\"\"\n{user_content}\n\"\"\""
                     )
 
-                    # Using the standard, universally available production model
+                    # Switched to gemini-3.5-flash-lite for maximum stability and lower traffic saturation
                     response = client.models.generate_content(
-                        model='gemini-3.5-flash',
+                        model='gemini-3.5-flash-lite',
                         contents=prompt,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
