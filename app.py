@@ -66,9 +66,9 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                         f"\"\"\"\n{user_content}\n\"\"\""
                     )
 
-                    # Using standard production model with robust configuration
+                    # Updated to the current standard production model gemini-3.8-flash
                     response = client.models.generate_content(
-                        model='gemini-2.5-flash',
+                        model='gemini-3.8-flash',
                         contents=prompt,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
@@ -79,9 +79,7 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                     success = True
                     break
                 except APIError as api_err:
-                    # Check for transient server/capacity issues (e.g., status 503)
                     if api_err.code == 503 and attempt < max_retries - 1:
-                        # Implement exponential backoff with jitter: base delay * (2^attempt) + random jitter
                         sleep_time = (2 ** attempt) + random.uniform(0.1, 0.5)
                         time.sleep(sleep_time)
                         continue
