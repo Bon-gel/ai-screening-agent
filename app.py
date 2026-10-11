@@ -3,8 +3,10 @@ import streamlit as st
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
 import os
 import time
+import random
 
 st.set_page_config(page_title="Enterprise AI Screening Agent", page_icon="🛡️", layout="wide")
 
@@ -64,9 +66,9 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                         f"\"\"\"\n{user_content}\n\"\"\""
                     )
 
-                    # Using standard gemini-3.5-flash production model with retry resilience
+                    # Using standard production model with robust configuration
                     response = client.models.generate_content(
-                        model='gemini-3.5-flash',
+                        model='gemini-2.5-flash',
                         contents=prompt,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
@@ -76,12 +78,19 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                     )
                     success = True
                     break
-                except Exception as e:
-                    if "503" in str(e) and attempt < max_retries - 1:
-                        time.sleep(2)
+                except APIError as api_err:
+                    # Check for transient server/capacity issues (e.g., status 503)
+                    if api_err.code == 503 and attempt < max_retries - 1:
+                        # Implement exponential backoff with jitter: base delay * (2^attempt) + random jitter
+                        sleep_time = (2 ** attempt) + random.uniform(0.1, 0.5)
+                        time.sleep(sleep_time)
                         continue
                     else:
-                        raise e
+                        st.error(f"API Error Encountered: {api_err}")
+                        break
+                except Exception as e:
+                    st.error(f"Unexpected Processing Exception: {e}")
+                    break
 
             if success and response:
                 try:
