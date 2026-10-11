@@ -35,15 +35,21 @@ with st.sidebar:
     target_type = st.selectbox("Select Target Type", ["resume", "code"])
     st.info("This agent uses Pydantic schema validation to guarantee clean, machine-readable JSON reports from Gemini.")
 
-# Text input area
+# Text input area with character count tracking
 user_content = st.text_area(
     f"Paste the raw text of the {target_type} to evaluate below:",
     height=250,
     placeholder=f"Paste raw {target_type} data here..."
 )
+
+# Input length validation check
+MAX_CHARS = 15000
+
 if st.button("Run AI Evaluation 🚀", type="primary"):
     if not user_content.strip():
         st.warning("Please provide input text to analyze.")
+    elif len(user_content) > MAX_CHARS:
+        st.error(f"⚠️ Input is too long ({len(user_content)} characters). Please keep submissions under {MAX_CHARS} characters to prevent context overflow.")
     else:
         with st.spinner("Analyzing submission against enterprise benchmarks..."):
             max_retries = 3
@@ -58,9 +64,9 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                         f"\"\"\"\n{user_content}\n\"\"\""
                     )
 
-                    # Switched to gemini-3.5-flash-lite for maximum stability and lower traffic saturation
+                    # Using valid production model with automated retry handling
                     response = client.models.generate_content(
-                        model='gemini-3.5-flash-lite',
+                        model='gemini-2.5-flash',
                         contents=prompt,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
@@ -69,40 +75,44 @@ if st.button("Run AI Evaluation 🚀", type="primary"):
                         ),
                     )
                     success = True
-                    break # Exit retry loop if successful
+                    break
                 except Exception as e:
                     if "503" in str(e) and attempt < max_retries - 1:
-                        time.sleep(2) # Wait 2 seconds before retrying
+                        time.sleep(2)
                         continue
                     else:
                         raise e
 
             if success and response:
-                # Parsed response matching the Pydantic model
-                report = response.parsed
+                try:
+                    # Parsed response matching the Pydantic model
+                    report = response.parsed
 
-                # Render dashboard report visually
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric(label="Target Analyzed", value=report.candidate_or_code_name)
-                    st.metric(label="Overall Score", value=f"{report.overall_score} / 100")
-                with col2:
-                    status_color = "🟢" if report.status == "Approved" else "🟡" if report.status == "Review Required" else "🔴"
-                    st.markdown(f"### Status: {status_color} **{report.status}**")
+                    # Render dashboard report visually
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric(label="Target Analyzed", value=report.candidate_or_code_name)
+                        st.metric(label="Overall Score", value=f"{report.overall_score} / 100")
+                    with col2:
+                        status_color = "🟢" if report.status == "Approved" else "🟡" if report.status == "Review Required" else "🔴"
+                        st.markdown(f"### Status: {status_color} **{report.status}**")
 
-                st.divider()
+                    st.divider()
 
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.subheader("💡 Key Strengths")
-                    for strength in report.key_strengths:
-                        st.markdown(f"- ✅ {strength}")
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.subheader("💡 Key Strengths")
+                        for strength in report.key_strengths:
+                            st.markdown(f"- ✅ {strength}")
 
-                with col_b:
-                    st.subheader("⚠️ Weaknesses / Bugs")
-                    for weakness in report.weaknesses_or_bugs:
-                        st.markdown(f"- ❌ {weakness}")
+                    with col_b:
+                        st.subheader("⚠️ Weaknesses / Bugs")
+                        for weakness in report.weaknesses_or_bugs:
+                            st.markdown(f"- ❌ {weakness}")
 
-                st.subheader("🛠️ Actionable Recommendations")
-                for rec in report.actionable_recommendations:
-                    st.markdown(f"1. {rec}")
+                    st.subheader("🛠️ Actionable Recommendations")
+                    for rec in report.actionable_recommendations:
+                        st.markdown(f"1. {rec}")
+
+                except Exception as render_err:
+                    st.error(f"Dashboard Rendering Exception: {render_err}")
